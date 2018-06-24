@@ -74,6 +74,11 @@ f = fs * f.';
 coi = 1 ./ (coival*(1/fs)*[1E-5,1:((norig+1)/2-1),fliplr((1:(norig/2-1))),1E-5]).';
 coi(coi>max(f)) = max(f);
 
+if nargout<1
+    t = linspace(0,(size(y,2)-1)/fs,size(y,2));
+    plotspectrum(t,f,y,coi);
+end
+
 end
 
 
@@ -132,4 +137,56 @@ c1 = (2/g)*log(2*b/g) + 2*log(b) + gammaln((2*(b-1)+1)/g) - gammaln((2*b+1)/g);
 c2 = ((2-2*g)/g)*log(2) + (2/g)*log(b/g) + 2*log(g) + gammaln((2*(b-1+g)+1)/g) - gammaln((2*b+1)/g);
 c3 = ((2-g)/g)*log(2) + (1+2/g)*log(b) + (1-2/g)*log(g) + log(2) + gammaln((2*(b-1+g./2)+1)/g) - gammaln((2*b+1)/g);
 sigmatime = real(sqrt(exp(c1) + exp(c2) - exp(c3)));
+end
+
+function plotspectrum(t,f,y,coi)
+%-INPUT--------------------------------------------------------------------
+% t: time (in seconds) of the spectrum and original signal
+% f: frequency bins (in Hz) of the spectrum
+% y: output time-frequency spectrum (complex matrix)
+% coi: edge of cone of influence (in Hz) at each time point
+%-OUTPUT-------------------------------------------------------------------
+% none: creates new figure and plots the time-frequency spectrum
+
+[t,coiweightt,ut] = engunits(t,'unicode','time');
+xlbl = ['Time (',ut,')'];
+[f,coiweightf,uf] = engunits(f,'unicode');
+%coiweightf = 1; uf = ''; %6/24/2018
+ylbl = ['Frequency (',uf,'Hz)'];
+coi = coi * coiweightt * coiweightf;
+
+hf = figure;
+hf.NextPlot = 'replace';
+ax = axes('parent',hf);
+imagesc(ax,t,log2(f),abs(y));
+
+cmap = jet(1000);cmap = cmap([round(linspace(1,375,250)),376:875],:); %jet is convention, but let's adjust
+%cmap = parula(750);
+colormap(cmap)
+
+logyticks = round(log2(min(f))):round(log2(max(f)));
+ax.YLim = log2([min(f), max(f)]);
+ax.YTick = logyticks;
+ax.YDir = 'normal';
+set(ax,'YLim',log2([min(f),max(f)]), ...
+    'layer','top', ...
+    'YTick',logyticks(:), ...
+    'YTickLabel',num2str(sprintf('%g\n',2.^logyticks)), ...
+    'layer','top')
+title('Magnitude Scalogram');
+xlabel(xlbl);
+ylabel(ylbl);
+hcol = colorbar;
+hcol.Label.String = 'Magnitude';
+hold(ax,'on');
+
+%shade out complement of coi
+plot(ax,t,log2(coi),'w--','linewidth',2);
+A1 = area(ax,t,log2(coi),min([min(ax.YLim) min(coi)]));
+A1.EdgeColor = 'none';
+A1.FaceColor = [0.5 0.5 0.5];
+alpha(A1,0.8);
+hold(ax,'off');
+hf.NextPlot = 'replace';
+    
 end
