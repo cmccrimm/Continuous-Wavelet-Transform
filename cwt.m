@@ -7,8 +7,9 @@ function [y,f,coi] = cwt(x,fs,varargin)
 %   'g': morse gamma parameter (default=3)
 %   'b': morse beta parameter (default=20)
 %   'k': order of morse waves (default=0)
-%   'nv': number of voices per octave (default=10)
+%   's0': smallest scale (determined automatically by default)
 %   'no': number of octaves (determined automatically by default)
+%   'nv': number of voices per octave (default=10)
 %   'pad': whether to pad input signal (default=true)
 %-OUTPUT-------------------------------------------------------------------
 % y: output time-frequency spectrum (complex matrix)
@@ -23,8 +24,9 @@ params.wavetype = 'morse';
 params.g = 3;
 params.b = 20;
 params.k = 0;
-params.nv = 10;
+params.s0 = [];
 params.no = [];
+params.nv = 10;
 params.pad = true;
 for i = 1:2:numel(varargin)
     params.(varargin{i}) = varargin{i+1};
@@ -47,7 +49,7 @@ if params.pad
 end
 n = numel(x);
 
-[s,~,params.no] = getScales(params.wavetype,norig,params.nv,params.no,params.g,params.b);
+[s,~,params.no] = getScales(params.wavetype,norig,params.s0,params.no,params.nv,params.g,params.b);
 w = getOmega(n);
 
 switch params.wavetype
@@ -82,20 +84,24 @@ end
 end
 
 
-function [scales,s0,no] = getScales(wavetype,n,nv,no,g,b)
+function [scales,s0,no] = getScales(wavetype,n,s0,no,nv,g,b)
     switch wavetype
         case 'morse'
             %smallest scale
-            a = 1;
-            testomegas = linspace(0,12*pi,1001);
-            omega = testomegas(find( log(testomegas.^b) + (-testomegas.^g) - log(a/2) + (b/g)*(1+(log(g)-log(b))) > 0, 1, 'last'));
-            s0 = min(2,omega/pi);
+            if ~exist('s0','var') || isempty(s0)
+                a = 1;
+                testomegas = linspace(0,12*pi,1001);
+                omega = testomegas(find( log(testomegas.^b) + (-testomegas.^g) - log(a/2) + (b/g)*(1+(log(g)-log(b))) > 0, 1, 'last'));
+                s0 = min(2,omega/pi);
+            end
             [~,sigma] = getMorseSigma(g,b);
         case 'morlet'
             %smallest scale
-            a = 0.1; omega0 = 6;
-            omega = sqrt(-2*log(a)) + omega0;
-            s0 = min(2,omega/pi);
+            if ~exist('s0','var') || isempty(s0)
+                a = 0.1; omega0 = 6;
+                omega = sqrt(-2*log(a)) + omega0;
+                s0 = min(2,omega/pi);
+            end
             sigma = sqrt(2)/2;
     end
     %largest scale
