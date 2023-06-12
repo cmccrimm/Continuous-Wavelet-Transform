@@ -1,4 +1,4 @@
-function [y,f,coi] = cwt(x,fs,varargin)
+function [y,f] = cwt(x,fs,varargin)
 %-INPUT--------------------------------------------------------------------
 % x: input signal (must be real vector for now)
 % fs: sampling frequency in Hz
@@ -14,7 +14,6 @@ function [y,f,coi] = cwt(x,fs,varargin)
 %-OUTPUT-------------------------------------------------------------------
 % y: output time-frequency spectrum (complex matrix)
 % f: frequency bins (in Hz) of spectrum
-% coi: edge of cone of influence (in Hz) at each time point
 %==========================================================================
 % Author: Colin M McCrimmon
 % E-mail: cmccrimm@uci.edu
@@ -73,8 +72,15 @@ y = y(1+npad:norig+npad,:).';
 
 f = fs * f.';
 
-coi = 1 ./ (coival*(1/fs)*[1E-5,1:((norig+1)/2-1),fliplr((1:(norig/2-1))),1E-5]).';
-coi(coi>max(f)) = max(f);
+%[1E-5,1:((norig+1)/2-1),fliplr((1:(norig/2-1))),1E-5];
+if mod(norig,2)==1 %odd
+    coiInd = 1:ceil(norig/2); 
+    coiInd = [coiInd, fliplr(coiInd(1:end-1))];
+else 
+    coiInd = 1:norig/2;
+    coiInd = [coiInd, fliplr(coiInd)];
+end
+coi = (coival * coiInd).';
 
 if nargout<1
     t = linspace(0,(size(y,2)-1)/fs,size(y,2));
@@ -150,7 +156,6 @@ function plotspectrum(t,f,y,coi)
 % t: time (in seconds) of the spectrum and original signal
 % f: frequency bins (in Hz) of the spectrum
 % y: output time-frequency spectrum (complex matrix)
-% coi: edge of cone of influence (in Hz) at each time point
 %-OUTPUT-------------------------------------------------------------------
 % none: creates new figure and plots the time-frequency spectrum
 
@@ -159,7 +164,9 @@ xlbl = ['Time (',ut,')'];
 [f,coiweightf,uf] = engunits(f,'unicode');
 %coiweightf = 1; uf = ''; %6/24/2018
 ylbl = ['Frequency (',uf,'Hz)'];
-coi = coi * coiweightt * coiweightf;
+coi = (coi * mean(diff(t))) ./ (coiweightt * coiweightf);
+invcoi = 1 ./ coi;
+invcoi(invcoi>max(f)) = max(f);
 
 hf = figure;
 hf.NextPlot = 'replace';
@@ -187,8 +194,8 @@ hcol.Label.String = 'Magnitude';
 hold(ax,'on');
 
 %shade out complement of coi
-plot(ax,t,log2(coi),'w--','linewidth',2);
-A1 = area(ax,t,log2(coi),min([min(ax.YLim) min(coi)]));
+plot(ax,t,log2(invcoi),'w--','linewidth',2);
+A1 = area(ax,t,log2(invcoi),min([min(ax.YLim) min(invcoi)]));
 A1.EdgeColor = 'none';
 A1.FaceColor = [0.5 0.5 0.5];
 alpha(A1,0.8);
